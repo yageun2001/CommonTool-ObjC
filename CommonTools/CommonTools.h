@@ -35,7 +35,6 @@ typedef NS_ENUM(NSUInteger, StaticIPInfoType){
 
 @property (nonatomic, strong) NSString *bssid;
 @property (nonatomic, strong) NSString *ssid;
-@property (nonatomic, strong) NSString *ssidData;
 
 @end
 
@@ -71,7 +70,7 @@ typedef NS_ENUM(NSUInteger, StaticIPInfoType){
 //Get current network interface
 + (NetworkStatus)detectNetworkInterface;
 //Get current wifi info
-+ (WifiInfoClass*)fetchWifiInfo;
++ (void)fetchWifiInfoWithCompletionHandler:(void (^)(WifiInfoClass * wifiInfo))completionHandler;
 + (NSString*)standardFormateMAC:(NSString*)MAC;
 //Get current local ip info
 + (LocalIPInfoClass*)getLocalIPInfo;

@@ -12,11 +12,12 @@
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 
+@import NetworkExtension;
+
 @implementation WifiInfoClass
 
 @synthesize bssid;
 @synthesize ssid;
-@synthesize ssidData;
 
 @end
 
@@ -93,29 +94,40 @@ NSString *const TOP_LEVEL_DOMAIN_STR_FOR_WEB_URL = @"(?:(?:aero|arpa|asia|a[cdef
     return [reachability currentReachabilityStatus];
 }
 
-+ (WifiInfoClass*)fetchWifiInfo{
-    NSArray *interfaceNames = CFBridgingRelease(CNCopySupportedInterfaces());
-    NSDictionary *SSIDInfo = nil;
++ (void)fetchWifiInfoWithCompletionHandler:(void (^)(WifiInfoClass *))completionHandler {
     
-    for (NSString *interfaceName in interfaceNames) {
-        SSIDInfo = CFBridgingRelease(
-                                     CNCopyCurrentNetworkInfo((__bridge CFStringRef)interfaceName));
+    if (@available(iOS 14.0, *)) {
+        [NEHotspotNetwork fetchCurrentWithCompletionHandler:^(NEHotspotNetwork * _Nullable currentNetwork) {
+            if (currentNetwork) {
+                WifiInfoClass* wifiInfo = [WifiInfoClass new];
+                wifiInfo.ssid = currentNetwork.SSID;
+                wifiInfo.bssid = currentNetwork.BSSID;
+                completionHandler(wifiInfo);
+                return;
+            }
+            completionHandler(nil);
+        }];
+        return;
+    }
+    
+    NSArray *interfaces = CFBridgingRelease(CNCopySupportedInterfaces());
+    
+    for (NSString *interfaceName in interfaces) {
+        NSDictionary *SSIDInfo = CFBridgingRelease(
+                                                   CNCopyCurrentNetworkInfo((__bridge CFStringRef)interfaceName));
         
-        BOOL isNotEmpty = (SSIDInfo.count > 0);
-        if (isNotEmpty) {
-            break;
+        if (SSIDInfo) {
+            WifiInfoClass* wifiInfo = [WifiInfoClass new];
+            wifiInfo.bssid = [CommonTools standardFormateMAC:[SSIDInfo objectForKey:@"BSSID"]];
+            wifiInfo.ssid = [SSIDInfo objectForKey:@"SSID"];
+            completionHandler(wifiInfo);
+            return;
         }
+        
     }
     
-    if (SSIDInfo) {
-        WifiInfoClass* wifiInfo = [WifiInfoClass new];
-        wifiInfo.bssid = [CommonTools standardFormateMAC:[SSIDInfo objectForKey:@"BSSID"]];
-        wifiInfo.ssid = [SSIDInfo objectForKey:@"SSID"];
-        wifiInfo.ssidData = [SSIDInfo objectForKey:@"SSIDDATA"];
-        return wifiInfo;
-    }
+    completionHandler(nil);
     
-    return nil;
 }
 
 + (NSString *)standardFormateMAC:(NSString *)MAC
